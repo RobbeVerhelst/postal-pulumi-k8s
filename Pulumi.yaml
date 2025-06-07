@@ -1,0 +1,11 @@
+name: postal
+runtime:
+  name: nodejs
+  options:
+    packagemanager: npm
+description: Pulumi project for deploying Postal mail server on Kubernetes
+config:
+  pulumi:tags:
+    value:
+      project: postal
+      environment: production

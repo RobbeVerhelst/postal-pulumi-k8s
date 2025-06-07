@@ -1,0 +1,49 @@
+name: Validate Postal Deployment
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Install Pulumi CLI
+        uses: pulumi/actions@v5
+        with:
+          pulumi-version: 'latest'
+          
+      - name: Lint TypeScript
+        run: npm run lint
+        
+      - name: Build TypeScript
+        run: npm run build
+        
+      # Note: Pulumi preview is commented out as it requires actual infrastructure credentials
+      # Uncomment and configure with proper secrets when ready to use
+      # - name: Pulumi Preview
+      #   uses: pulumi/actions@v5
+      #   with:
+      #     command: preview
+      #     stack-name: production
+      #     comment-on-pr: true
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #   env:
+      #     PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+      #     # Add your required configuration secrets here:
+      #     # KUBECONFIG: ${{ secrets.KUBECONFIG }}
+      #     # POSTAL_MYSQL_PASSWORD: ${{ secrets.POSTAL_MYSQL_PASSWORD }}
+      #     # POSTAL_SIGNING_KEY: ${{ secrets.POSTAL_SIGNING_KEY }} 

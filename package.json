@@ -1,0 +1,26 @@
+{
+    "name": "postal",
+    "version": "1.0.0",
+    "description": "Pulumi project for deploying Postal mail server on Kubernetes",
+    "main": "index.ts",
+    "scripts": {
+        "build": "tsc",
+        "deploy": "pulumi up",
+        "destroy": "pulumi destroy",
+        "preview": "pulumi preview",
+        "lint": "tsc --noEmit"
+    },
+    "author": "Robbe Verhelst",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^18",
+        "typescript": "^5.0.0"
+    },
+    "dependencies": {
+        "@pulumi/kubernetes": "^4.21.1",
+        "@pulumi/pulumi": "^3.113.0"
+    },
+    "engines": {
+        "node": ">=16.0.0"
+    }
+}
