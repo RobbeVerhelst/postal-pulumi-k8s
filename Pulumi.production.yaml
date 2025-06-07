@@ -5,15 +5,28 @@ config:
   
   # Postal configuration
   postal:domain: postal.example.com
-  postal:mysql-host: mysql.example.com
-  postal:mysql-database: postal
-  postal:mysql-username: postal_user
   postal:mysql-password:
     secure: # Set with: pulumi config set --secret postal:mysql-password <password>
   postal:signing-key:
     secure: # Set with: openssl genrsa 2048 | pulumi config set --secret postal:signing-key
   
-  # Optional configuration (uncomment and modify as needed)
+  # MySQL deployment configuration
+  postal:deploy-mysql: "true" # Set to "false" to use external MySQL
+  postal:mysql-root-password:
+    secure: # Required if deploy-mysql is true: pulumi config set --secret postal:mysql-root-password <password>
+  
+  # MySQL configuration (optional with defaults when deploy-mysql is true)
+  # postal:mysql-database: postal
+  # postal:mysql-username: postal
+  # postal:mysql-storage-size: 8Gi
+  # postal:mysql-storage-class: ""
+  
+  # External MySQL configuration (required if deploy-mysql is false)
+  # postal:mysql-host: mysql.example.com
+  # postal:mysql-database: postal
+  # postal:mysql-username: postal_user
+  
+  # Optional Postal configuration (uncomment and modify as needed)
   # postal:image: ghcr.io/postalserver/postal:3.3.4
   # postal:web-replicas: "1"
   # postal:smtp-replicas: "1"

@@ -7,6 +7,7 @@ This repository contains a Pulumi project for deploying [Postal](https://docs.po
 - **Web Interface**: Complete web-based management interface
 - **SMTP Server**: Full-featured SMTP server with TLS support
 - **Background Workers**: Asynchronous job processing
+- **Integrated MySQL**: Bitnami MySQL Helm chart deployment (or external MySQL support)
 - **Scalable**: Easily scale components independently
 - **Kubernetes Native**: Deployed using Kubernetes best practices
 - **Infrastructure as Code**: Managed with Pulumi for reproducible deployments
@@ -15,158 +16,137 @@ This repository contains a Pulumi project for deploying [Postal](https://docs.po
 
 This deployment creates the following Kubernetes resources:
 
-- **Namespace**: `postal` - Isolated namespace for all Postal components
-- **Web Deployment**: Postal web interface (configurable replicas)
-- **SMTP Deployment**: SMTP server for mail processing (configurable replicas)
-- **Worker Deployment**: Background job workers (configurable replicas)
-- **Services**: ClusterIP for web, LoadBalancer for SMTP
-- **Ingress**: HTTPS access to the web interface
-- **Secret**: Postal configuration and signing key
-- **Job**: Database initialization
+### Core Components
+- **Namespace**: `postal` - Isolated namespace for all Postal resources
+- **Web Deployment**: Postal web interface with ingress and TLS termination
+- **SMTP Deployment**: Mail server with LoadBalancer service for external access
+- **Worker Deployment**: Background job processing for email delivery
+- **Init Job**: Database initialization and user creation
+
+### Database Options
+- **Integrated MySQL**: Bitnami MySQL Helm chart (default)
+  - Persistent storage with configurable size and storage class
+  - Optimized configuration for Postal
+  - Automatic backup and monitoring capabilities
+- **External MySQL**: Support for existing MySQL instances
+
+### Networking
+- **Ingress**: HTTPS access to web interface with automatic TLS certificates
+- **LoadBalancer**: Direct SMTP access on port 25
+- **Internal Services**: ClusterIP services for inter-component communication
 
 ## Prerequisites
 
-Before deploying Postal, ensure you have:
-
-1. **Kubernetes Cluster**: A running Kubernetes cluster with:
-   - Ingress controller (nginx recommended)
-   - LoadBalancer support (for SMTP service)
-   - Cert-manager (for TLS certificates)
-
-2. **MySQL Database**: Postal requires a MySQL database. Set up:
-   - MySQL 5.7+ or MariaDB 10.2+
-   - Database and user with full privileges
-   - Network access from your Kubernetes cluster
-
-3. **Domain Configuration**: 
-   - A domain for Postal (e.g., `postal.example.com`)
-   - DNS A record pointing to your cluster's ingress
-   - MX record pointing to your SMTP service IP
-
-4. **Tools**:
-   - [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/)
-   - [kubectl](https://kubernetes.io/docs/tasks/tools/)
-   - Node.js 16+
+- Kubernetes cluster (1.19+)
+- Pulumi CLI installed
+- kubectl configured to access your cluster
+- Ingress controller (nginx recommended)
+- Cert-manager for automatic TLS certificates (optional but recommended)
 
 ## Quick Start
 
-### 1. Clone and Setup
+1. **Clone and setup**:
+   ```bash
+   git clone <this-repo>
+   cd postal
+   npm install
+   ```
 
-```bash
-git clone <this-repository>
-cd postal
-npm install
-```
+2. **Initialize Pulumi stack**:
+   ```bash
+   pulumi stack init production
+   ```
 
-### 2. Initialize Pulumi Stack
+3. **Configure the deployment**:
+   ```bash
+   ./setup-stack-config.sh
+   ```
+   This interactive script will guide you through all required configuration.
 
-```bash
-# Create a new stack (or select existing)
-pulumi stack init production
+4. **Deploy**:
+   ```bash
+   pulumi up
+   ```
 
-# Or select existing stack
-pulumi stack select production
-```
+5. **Initialize Postal** (after deployment completes):
+   ```bash
+   kubectl exec -it deployment/postal-web -n postal -- postal initialize
+   kubectl exec -it deployment/postal-web -n postal -- postal make-user
+   ```
 
-### 3. Configure the Stack
+## Configuration
 
-Run the interactive configuration script:
+### Required Configuration
 
-```bash
-chmod +x setup-stack-config.sh
-./setup-stack-config.sh
-```
+| Key | Description | Example |
+|-----|-------------|---------|
+| `kubeconfig` | Path to kubeconfig file | `~/.kube/config` |
+| `postal:domain` | Your Postal domain | `postal.example.com` |
+| `postal:mysql-password` | MySQL password for Postal user | `secure-password` |
+| `postal:signing-key` | RSA private key for signing | Generate with `openssl genrsa 2048` |
 
-Or configure manually:
+### MySQL Configuration
 
-```bash
-# Required configuration
-pulumi config set kubeconfig ~/.kube/config
-pulumi config set postal:domain postal.example.com
-pulumi config set postal:mysql-host mysql.example.com
-pulumi config set postal:mysql-database postal
-pulumi config set postal:mysql-username postal_user
-pulumi config set --secret postal:mysql-password your_mysql_password
+#### Integrated MySQL (Default)
+| Key | Description | Default |
+|-----|-------------|---------|
+| `postal:deploy-mysql` | Deploy MySQL using Bitnami chart | `true` |
+| `postal:mysql-root-password` | MySQL root password | Required |
+| `postal:mysql-database` | Database name | `postal` |
+| `postal:mysql-username` | Database username | `postal` |
+| `postal:mysql-storage-size` | Persistent volume size | `8Gi` |
+| `postal:mysql-storage-class` | Storage class | Default cluster storage class |
 
-# Generate and set signing key
-openssl genrsa 2048 | pulumi config set --secret postal:signing-key
+#### External MySQL
+Set `postal:deploy-mysql` to `false` and configure:
+| Key | Description | Example |
+|-----|-------------|---------|
+| `postal:mysql-host` | MySQL server hostname | `mysql.example.com` |
+| `postal:mysql-database` | Database name | `postal` |
+| `postal:mysql-username` | Database username | `postal_user` |
 
-# Optional configuration (with defaults)
-pulumi config set postal:image ghcr.io/postalserver/postal:3.3.4
-pulumi config set postal:web-replicas 1
-pulumi config set postal:smtp-replicas 1
-pulumi config set postal:worker-replicas 1
-pulumi config set postal:ingress-class nginx
-pulumi config set postal:smtp-service-type LoadBalancer
-```
+### Optional Configuration
 
-### 4. Deploy
-
-```bash
-# Preview the deployment
-pulumi preview
-
-# Deploy to Kubernetes
-pulumi up
-```
-
-### 5. Initialize Postal
-
-After deployment, initialize the database and create an admin user:
-
-```bash
-# Initialize the database
-kubectl exec -it deployment/postal-web -n postal -- postal initialize
-
-# Create admin user (follow prompts)
-kubectl exec -it deployment/postal-web -n postal -- postal make-user
-```
-
-### 6. Access Postal
-
-- **Web Interface**: `https://your-postal-domain.com`
-- **SMTP Server**: Your LoadBalancer IP on port 25
-
-## Configuration Options
-
-| Configuration Key | Description | Default | Required |
-|------------------|-------------|---------|----------|
-| `kubeconfig` | Path to kubeconfig file | - | ✅ |
-| `postal:domain` | Postal domain name | - | ✅ |
-| `postal:mysql-host` | MySQL host | - | ✅ |
-| `postal:mysql-database` | MySQL database name | - | ✅ |
-| `postal:mysql-username` | MySQL username | - | ✅ |
-| `postal:mysql-password` | MySQL password | - | ✅ |
-| `postal:signing-key` | RSA private key for signing | - | ✅ |
-| `postal:image` | Postal container image | `ghcr.io/postalserver/postal:3.3.4` | ❌ |
-| `postal:web-replicas` | Web component replicas | `1` | ❌ |
-| `postal:smtp-replicas` | SMTP component replicas | `1` | ❌ |
-| `postal:worker-replicas` | Worker component replicas | `1` | ❌ |
-| `postal:ingress-class` | Ingress controller class | `nginx` | ❌ |
-| `postal:smtp-service-type` | SMTP service type | `LoadBalancer` | ❌ |
-| `postal:smtp-loadbalancer-ip` | Static IP for SMTP LoadBalancer | - | ❌ |
+| Key | Description | Default |
+|-----|-------------|---------|
+| `postal:image` | Postal container image | `ghcr.io/postalserver/postal:3.3.4` |
+| `postal:web-replicas` | Web component replicas | `1` |
+| `postal:smtp-replicas` | SMTP component replicas | `1` |
+| `postal:worker-replicas` | Worker component replicas | `1` |
+| `postal:ingress-class` | Ingress controller class | `nginx` |
+| `postal:smtp-service-type` | SMTP service type | `LoadBalancer` |
+| `postal:smtp-loadbalancer-ip` | Static IP for SMTP LoadBalancer | Auto-assigned |
 
 ## DNS Configuration
 
-For Postal to work correctly, configure these DNS records:
+Configure your domain's DNS records:
 
-```dns
+```
 # A record for web interface
-postal.example.com.     IN  A       <ingress-ip>
+postal.example.com.     A    <ingress-ip>
 
 # MX record for mail delivery
-example.com.            IN  MX  10  postal.example.com.
+example.com.           MX   10 postal.example.com.
 
 # SPF record
-example.com.            IN  TXT     "v=spf1 include:postal.example.com ~all"
+example.com.           TXT  "v=spf1 include:postal.example.com ~all"
 
-# DKIM record (generated by Postal)
-<selector>._domainkey.example.com. IN TXT "v=DKIM1; k=rsa; p=<public-key>"
+# DKIM record (get from Postal web interface after setup)
+default._domainkey.example.com. TXT "v=DKIM1; k=rsa; p=<public-key>"
 ```
+
+## Post-Deployment Setup
+
+1. **Access the web interface**: `https://postal.example.com`
+2. **Create your first organization and mail server**
+3. **Configure DNS records** as shown in the Postal interface
+4. **Set up DKIM signing** for your domains
+5. **Configure IP pools** if needed
+6. **Test email delivery**
 
 ## Scaling
 
-Scale individual components as needed:
+Scale individual components:
 
 ```bash
 # Scale web interface
@@ -184,66 +164,67 @@ pulumi up
 
 ## Monitoring
 
-Check deployment status:
+The deployment includes:
+- **Liveness probes**: Automatic restart of unhealthy containers
+- **Readiness probes**: Traffic routing only to ready containers
+- **Resource limits**: Prevent resource exhaustion
+- **MySQL metrics**: Optional Prometheus metrics (set `metrics.enabled: true` in MySQL values)
 
+## Backup
+
+### MySQL Backup
+If using integrated MySQL:
 ```bash
-# Check all pods
-kubectl get pods -n postal
+# Create backup
+kubectl exec -it postal-mysql-0 -n postal -- mysqldump -u root -p postal > postal-backup.sql
 
-# Check services
-kubectl get services -n postal
+# Restore backup
+kubectl exec -i postal-mysql-0 -n postal -- mysql -u root -p postal < postal-backup.sql
+```
 
-# Check ingress
-kubectl get ingress -n postal
-
-# View logs
-kubectl logs -f deployment/postal-web -n postal
-kubectl logs -f deployment/postal-smtp -n postal
-kubectl logs -f deployment/postal-worker -n postal
+### Configuration Backup
+```bash
+# Export Pulumi configuration
+pulumi config --show-secrets > postal-config-backup.yaml
 ```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Database Connection Issues**:
-   ```bash
-   kubectl logs deployment/postal-web -n postal
-   # Check MySQL connectivity and credentials
-   ```
-
-2. **Ingress Not Working**:
-   ```bash
-   kubectl describe ingress postal-web -n postal
-   # Verify ingress controller and DNS configuration
-   ```
-
-3. **SMTP Service Not Accessible**:
-   ```bash
-   kubectl get service postal-smtp -n postal
-   # Check LoadBalancer IP assignment
-   ```
+1. **MySQL connection errors**: Check if MySQL is ready and credentials are correct
+2. **Ingress not working**: Verify ingress controller is installed and domain DNS is configured
+3. **SMTP not accessible**: Check LoadBalancer service and firewall rules
+4. **Pods not starting**: Check resource limits and node capacity
 
 ### Useful Commands
 
 ```bash
-# Get SMTP service external IP
-kubectl get service postal-smtp -n postal -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+# Check pod status
+kubectl get pods -n postal
 
-# Access Postal console
-kubectl exec -it deployment/postal-web -n postal -- postal console
+# View logs
+kubectl logs -f deployment/postal-web -n postal
+kubectl logs -f deployment/postal-smtp -n postal
+kubectl logs -f deployment/postal-worker -n postal
 
-# Check Postal status
-kubectl exec -it deployment/postal-web -n postal -- postal status
+# Access MySQL
+kubectl exec -it postal-mysql-0 -n postal -- mysql -u root -p
+
+# Check services
+kubectl get svc -n postal
+
+# Check ingress
+kubectl get ingress -n postal
 ```
 
 ## Security Considerations
 
-- Store sensitive configuration as Pulumi secrets
-- Use TLS certificates for web interface (cert-manager recommended)
-- Configure proper firewall rules for SMTP access
-- Regularly update Postal container images
-- Monitor for security updates
+- **TLS Encryption**: All web traffic is encrypted with automatic certificates
+- **Network Policies**: Consider implementing network policies for additional isolation
+- **RBAC**: Use Kubernetes RBAC to limit access to Postal resources
+- **Secrets Management**: All sensitive data is stored in Kubernetes secrets
+- **MySQL Security**: Root password and user passwords are encrypted at rest
 
 ## Contributing
 
@@ -257,9 +238,10 @@ kubectl exec -it deployment/postal-web -n postal -- postal status
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## References
+## Support
 
 - [Postal Documentation](https://docs.postalserver.io/)
-- [Postal GitHub Repository](https://github.com/postalserver/postal)
-- [Pulumi Kubernetes Provider](https://www.pulumi.com/docs/intro/cloud-providers/kubernetes/)
-- [Original Helm Chart PR](https://github.com/postalserver/install/pull/20)
+- [Pulumi Documentation](https://www.pulumi.com/docs/)
+- [Kubernetes Documentation](https://kubernetes.io/docs/)
+
+For issues with this deployment, please open a GitHub issue.

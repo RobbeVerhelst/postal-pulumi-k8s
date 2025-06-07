@@ -1,6 +1,7 @@
 import { Config, getStack } from "@pulumi/pulumi";
 import { Provider } from "@pulumi/kubernetes";
 import { Namespace } from "@pulumi/kubernetes/core/v1";
+import { Release } from "@pulumi/kubernetes/helm/v3";
 import * as k8s from "@pulumi/kubernetes";
 
 // ============================================================================
@@ -17,11 +18,19 @@ const kubeconfig = config.require("kubeconfig");
 // Postal configuration
 const postalConfig = new Config("postal");
 const postalDomain = postalConfig.require("domain"); // e.g., "postal.example.com"
-const mysqlHost = postalConfig.require("mysql-host");
-const mysqlDatabase = postalConfig.require("mysql-database");
-const mysqlUsername = postalConfig.require("mysql-username");
+
+// MySQL configuration - now optional since we're deploying MySQL
+const mysqlHost = postalConfig.get("mysql-host") || "postal-mysql";
+const mysqlDatabase = postalConfig.get("mysql-database") || "postal";
+const mysqlUsername = postalConfig.get("mysql-username") || "postal";
 const mysqlPassword = postalConfig.requireSecret("mysql-password");
 const signingKey = postalConfig.requireSecret("signing-key");
+
+// MySQL deployment configuration
+const deployMysql = postalConfig.getBoolean("deploy-mysql") ?? true;
+const mysqlRootPassword = postalConfig.requireSecret("mysql-root-password");
+const mysqlStorageSize = postalConfig.get("mysql-storage-size") || "8Gi";
+const mysqlStorageClass = postalConfig.get("mysql-storage-class") || "";
 
 // Optional configuration with defaults
 const postalImage = postalConfig.get("image") || "ghcr.io/postalserver/postal:3.3.4";
@@ -44,6 +53,100 @@ const k8sProvider = new Provider("k8s-provider", {
 const postalNamespace = new Namespace("postal-ns", {
     metadata: { name: "postal" },
 }, { provider: k8sProvider });
+
+// ============================================================================
+// MYSQL DEPLOYMENT (BITNAMI HELM CHART)
+// ============================================================================
+
+let mysqlRelease: Release | undefined;
+
+if (deployMysql) {
+    mysqlRelease = new Release("postal-mysql", {
+        name: "postal-mysql",
+        chart: "mysql",
+        version: "11.1.19", // Latest stable version as of 2024
+        repositoryOpts: {
+            repo: "https://charts.bitnami.com/bitnami",
+        },
+        namespace: postalNamespace.metadata.name,
+        values: {
+            // MySQL configuration
+            auth: {
+                rootPassword: mysqlRootPassword,
+                database: mysqlDatabase,
+                username: mysqlUsername,
+                password: mysqlPassword,
+            },
+            // MySQL image configuration
+            image: {
+                tag: "8.0.40-debian-12-r0", // Stable MySQL 8.0 version
+            },
+            // Architecture
+            architecture: "standalone",
+            // Primary configuration
+            primary: {
+                persistence: {
+                    enabled: true,
+                    size: mysqlStorageSize,
+                    ...(mysqlStorageClass && { storageClass: mysqlStorageClass }),
+                },
+                resources: {
+                    limits: {
+                        memory: "1Gi",
+                        cpu: "1000m"
+                    },
+                    requests: {
+                        memory: "512Mi",
+                        cpu: "250m"
+                    }
+                },
+                configuration: `
+[mysqld]
+default_authentication_plugin=mysql_native_password
+skip-name-resolve
+explicit_defaults_for_timestamp
+basedir=/opt/bitnami/mysql
+plugin_dir=/opt/bitnami/mysql/lib/plugin
+port=3306
+socket=/opt/bitnami/mysql/tmp/mysql.sock
+datadir=/bitnami/mysql/data
+tmpdir=/opt/bitnami/mysql/tmp
+max_allowed_packet=16M
+bind-address=*
+pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+log-error=/opt/bitnami/mysql/logs/mysqld.log
+character-set-server=UTF8
+collation-server=utf8_general_ci
+slow_query_log=0
+slow_query_log_file=/opt/bitnami/mysql/logs/mysqld.log
+long_query_time=10.0
+
+[client]
+port=3306
+socket=/opt/bitnami/mysql/tmp/mysql.sock
+default-character-set=UTF8
+plugin_dir=/opt/bitnami/mysql/lib/plugin
+
+[manager]
+port=3306
+socket=/opt/bitnami/mysql/tmp/mysql.sock
+pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+`,
+            },
+            // Service configuration
+            service: {
+                type: "ClusterIP",
+                ports: {
+                    mysql: 3306
+                }
+            },
+            // Metrics (optional)
+            metrics: {
+                enabled: false,
+            },
+        },
+    }, { provider: k8sProvider, dependsOn: [postalNamespace] });
+}
 
 // ============================================================================
 // POSTAL CONFIGURATION
@@ -113,7 +216,10 @@ const postalSecret = new k8s.core.v1.Secret("postal-secret", {
         "postal.yml": Buffer.from(JSON.stringify(postalYmlConfig, null, 2)).toString("base64"),
         "signing.key": signingKey.apply((key: string) => Buffer.from(key).toString("base64"))
     }
-}, { provider: k8sProvider, dependsOn: [postalNamespace] });
+}, { 
+    provider: k8sProvider, 
+    dependsOn: mysqlRelease ? [postalNamespace, mysqlRelease] : [postalNamespace]
+});
 
 // ============================================================================
 // WEB DEPLOYMENT
@@ -488,3 +594,5 @@ export const namespaceName = postalNamespace.metadata.name;
 export const webUrl = `https://${postalDomain}`;
 export const smtpServiceName = smtpService.metadata.name;
 export const smtpServiceType = smtpService.spec.type;
+export const mysqlServiceName = mysqlRelease ? "postal-mysql" : "external-mysql";
+export const mysqlEndpoint = mysqlRelease ? "postal-mysql.postal.svc.cluster.local:3306" : `${mysqlHost}:3306`;

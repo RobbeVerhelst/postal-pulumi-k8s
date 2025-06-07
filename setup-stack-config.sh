@@ -60,11 +60,60 @@ set_config "kubeconfig" "Path to your kubeconfig file (e.g., ~/.kube/config)"
 
 # Postal configuration
 set_config "postal:domain" "Your Postal domain (e.g., postal.example.com)"
-set_config "postal:mysql-host" "MySQL host (e.g., mysql.example.com)"
-set_config "postal:mysql-database" "MySQL database name (e.g., postal)"
-set_config "postal:mysql-username" "MySQL username"
-set_config "postal:mysql-password" "MySQL password" true
+set_config "postal:mysql-password" "MySQL password for Postal user" true
 set_config "postal:signing-key" "Postal signing key (generate with: openssl genrsa 2048)" true
+
+echo ""
+echo "🗄️ MySQL Database Configuration:"
+echo "================================"
+
+# Ask about MySQL deployment
+echo "📝 Deploy MySQL using Bitnami Helm chart? (default: true)"
+current_value=$(pulumi config get "postal:deploy-mysql" 2>/dev/null || echo "")
+if [ -z "$current_value" ]; then
+    read -p "Deploy MySQL? (y/n, default: y): " deploy_mysql
+    if [ "$deploy_mysql" = "n" ] || [ "$deploy_mysql" = "N" ]; then
+        pulumi config set "postal:deploy-mysql" "false"
+        echo "📝 External MySQL configuration required:"
+        set_config "postal:mysql-host" "External MySQL host (e.g., mysql.example.com)"
+        set_config "postal:mysql-database" "MySQL database name"
+        set_config "postal:mysql-username" "MySQL username"
+    else
+        pulumi config set "postal:deploy-mysql" "true"
+        set_config "postal:mysql-root-password" "MySQL root password" true
+        echo "📝 MySQL database name (default: postal)"
+        current_value=$(pulumi config get "postal:mysql-database" 2>/dev/null || echo "")
+        if [ -z "$current_value" ]; then
+            read -p "Enter value (or press Enter for default): " value
+            if [ -n "$value" ]; then
+                pulumi config set "postal:mysql-database" "$value"
+            fi
+        else
+            echo "✅ postal:mysql-database is already set: $current_value"
+        fi
+        
+        echo "📝 MySQL username (default: postal)"
+        current_value=$(pulumi config get "postal:mysql-username" 2>/dev/null || echo "")
+        if [ -z "$current_value" ]; then
+            read -p "Enter value (or press Enter for default): " value
+            if [ -n "$value" ]; then
+                pulumi config set "postal:mysql-username" "$value"
+            fi
+        else
+            echo "✅ postal:mysql-username is already set: $current_value"
+        fi
+    fi
+else
+    echo "✅ postal:deploy-mysql is already set: $current_value"
+    if [ "$current_value" = "false" ]; then
+        echo "📝 External MySQL configuration:"
+        set_config "postal:mysql-host" "External MySQL host (e.g., mysql.example.com)"
+        set_config "postal:mysql-database" "MySQL database name"
+        set_config "postal:mysql-username" "MySQL username"
+    else
+        set_config "postal:mysql-root-password" "MySQL root password" true
+    fi
+fi
 
 echo ""
 echo "⚙️ Optional Configuration (press Enter to use defaults):"
@@ -148,6 +197,36 @@ else
     echo "✅ postal:smtp-loadbalancer-ip is already set: $current_value"
 fi
 
+# MySQL storage configuration (only if deploying MySQL)
+deploy_mysql_value=$(pulumi config get "postal:deploy-mysql" 2>/dev/null || "true")
+if [ "$deploy_mysql_value" = "true" ]; then
+    echo ""
+    echo "🗄️ MySQL Storage Configuration:"
+    echo "==============================="
+    
+    echo "📝 MySQL storage size (default: 8Gi)"
+    current_value=$(pulumi config get "postal:mysql-storage-size" 2>/dev/null || echo "")
+    if [ -z "$current_value" ]; then
+        read -p "Enter value (or press Enter for default): " value
+        if [ -n "$value" ]; then
+            pulumi config set "postal:mysql-storage-size" "$value"
+        fi
+    else
+        echo "✅ postal:mysql-storage-size is already set: $current_value"
+    fi
+    
+    echo "📝 MySQL storage class (optional, leave empty for default)"
+    current_value=$(pulumi config get "postal:mysql-storage-class" 2>/dev/null || echo "")
+    if [ -z "$current_value" ]; then
+        read -p "Enter value (or press Enter to skip): " value
+        if [ -n "$value" ]; then
+            pulumi config set "postal:mysql-storage-class" "$value"
+        fi
+    else
+        echo "✅ postal:mysql-storage-class is already set: $current_value"
+    fi
+fi
+
 echo ""
 echo "✅ Configuration complete!"
 echo ""
@@ -157,7 +236,11 @@ pulumi config
 echo ""
 echo "🚀 Next steps:"
 echo "1. Review your configuration above"
-echo "2. Make sure your MySQL database is set up and accessible"
+if [ "$deploy_mysql_value" = "false" ]; then
+    echo "2. Make sure your external MySQL database is set up and accessible"
+else
+    echo "2. MySQL will be deployed automatically with Postal"
+fi
 echo "3. Ensure your domain DNS is configured to point to your cluster"
 echo "4. Run 'pulumi up' to deploy Postal"
 echo "5. After deployment, run the initialization commands:"
