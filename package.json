@@ -1,14 +1,35 @@
 {
-    "name": "postal",
+    "name": "postal-pulumi-k8s",
     "version": "1.0.0",
-    "description": "Pulumi project for deploying Postal mail server on Kubernetes",
-    "main": "index.ts",
+    "description": "Pulumi project for deploying Postal mail server on Kubernetes with MariaDB",
+    "main": "src/index.ts",
+    "keywords": [
+        "postal",
+        "mail-server",
+        "kubernetes",
+        "pulumi",
+        "mariadb",
+        "smtp",
+        "infrastructure-as-code",
+        "selfhosted",
+        "homelab"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/RobbeVerhelst/postal-pulumi-k8s.git"
+    },
+    "bugs": {
+        "url": "https://github.com/RobbeVerhelst/postal-pulumi-k8s/issues"
+    },
+    "homepage": "https://github.com/RobbeVerhelst/postal-pulumi-k8s#readme",
     "scripts": {
         "build": "tsc",
+        "clean": "rm -rf bin/ node_modules/",
         "deploy": "pulumi up",
         "destroy": "pulumi destroy",
         "preview": "pulumi preview",
-        "lint": "tsc --noEmit"
+        "lint": "tsc --noEmit",
+        "refresh": "pulumi refresh"
     },
     "author": "Robbe Verhelst",
     "license": "MIT",

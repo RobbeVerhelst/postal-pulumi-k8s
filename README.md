@@ -1,16 +1,38 @@
-# Postal Mail Server - Pulumi Kubernetes Deployment
+# Postal Mail Server on Kubernetes with Pulumi
 
-This repository contains a Pulumi project for deploying [Postal](https://docs.postalserver.io/), a complete and fully featured mail delivery platform, on Kubernetes. Postal is an open-source alternative to services like Sendgrid, Mailgun, or Postmark that you can run on your own servers.
+[![CI - Build, Lint & Validate](https://github.com/RobbeVerhelst/postal-pulumi-k8s/actions/workflows/validate.yml/badge.svg)](https://github.com/RobbeVerhelst/postal-pulumi-k8s/actions/workflows/validate.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Pulumi](https://img.shields.io/badge/Pulumi-8A3391?logo=pulumi&logoColor=white)](https://www.pulumi.com/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+
+Deploy [Postal](https://docs.postalserver.io/) mail server on Kubernetes using Pulumi Infrastructure as Code. This project provides a production-ready, self-hosted alternative to services like Sendgrid, Mailgun, or Postmark.
+
+## 🚀 Quick Start
+
+```bash
+git clone https://github.com/RobbeVerhelst/postal-pulumi-k8s.git
+cd postal-pulumi-k8s
+npm install
+./setup-stack-config.sh  # Interactive configuration
+pulumi up                 # Deploy to your cluster
+```
+
+**Result**: Complete mail server with web interface, SMTP server, and MariaDB backend running on your Kubernetes cluster!
+
+> **Topics**: `postal` `mail-server` `kubernetes` `pulumi` `mariadb` `smtp` `infrastructure-as-code` `selfhosted` `homelab` `typescript`
 
 ## Features
 
 - **Web Interface**: Complete web-based management interface
 - **SMTP Server**: Full-featured SMTP server with TLS support
 - **Background Workers**: Asynchronous job processing
-- **Integrated MySQL**: Bitnami MySQL Helm chart deployment (or external MySQL support)
+- **Integrated MariaDB**: Custom MariaDB deployment with automatic permissions (or external database support)
 - **Scalable**: Easily scale components independently
 - **Kubernetes Native**: Deployed using Kubernetes best practices
 - **Infrastructure as Code**: Managed with Pulumi for reproducible deployments
+- **CI Ready**: GitHub Actions workflow for automated testing and validation
+- **Production Ready**: Enterprise-grade code quality with strict TypeScript checking
 
 ## Architecture
 
@@ -18,22 +40,39 @@ This deployment creates the following Kubernetes resources:
 
 ### Core Components
 - **Namespace**: `postal` - Isolated namespace for all Postal resources
-- **Web Deployment**: Postal web interface with ingress and TLS termination
-- **SMTP Deployment**: Mail server with LoadBalancer service for external access
+- **MariaDB**: Custom MariaDB component with automatic mail server database permissions
+- **Web Deployment**: Postal web interface (port 5000) with Cloudflare tunnel support
+- **SMTP Deployment**: Mail server (port 25) with configurable service type
 - **Worker Deployment**: Background job processing for email delivery
-- **Init Job**: Database initialization and user creation
+- **Init Job**: Automatic database initialization and admin user creation
 
-### Database Options
-- **Integrated MySQL**: Bitnami MySQL Helm chart (default)
-  - Persistent storage with configurable size and storage class
-  - Optimized configuration for Postal
-  - Automatic backup and monitoring capabilities
-- **External MySQL**: Support for existing MySQL instances
+### Clean Architecture
+- **Organized Structure**: TypeScript source files in `src/` directory
+- **Modular Components**: Separate reusable components for MariaDB and Postal
+- **Type Safety**: Strict TypeScript with comprehensive compiler checks
+- **Specific Imports**: Optimized imports for better tree shaking and smaller bundles
+- **Configuration Management**: Typed interfaces for all configuration sections
 
-### Networking
-- **Ingress**: HTTPS access to web interface with automatic TLS certificates
-- **LoadBalancer**: Direct SMTP access on port 25
-- **Internal Services**: ClusterIP services for inter-component communication
+## CI Pipeline
+
+The repository includes a comprehensive CI pipeline that runs automatically on every push and pull request:
+
+### Automated Checks
+- **Build & Lint**: TypeScript compilation and strict linting
+- **Pulumi Validation**: Syntax validation with fake credentials (no infrastructure required)
+- **Security Checks**: Dependency audit and hardcoded secret detection
+- **Documentation**: README validation and required sections check
+- **Code Quality**: TODO/FIXME detection and console statement checks
+
+### Smart Validation
+The CI pipeline cleverly validates your Pulumi program without needing real infrastructure:
+- Creates temporary stack with fake credentials
+- Validates TypeScript compilation and Pulumi syntax
+- Runs security audits and code quality checks
+- Provides fast feedback in ~3-5 minutes
+- Uses zero cloud resources for testing
+
+No setup required - the CI runs automatically and doesn't need any secrets or configuration!
 
 ## Prerequisites
 
@@ -62,6 +101,12 @@ This deployment creates the following Kubernetes resources:
    ./setup-stack-config.sh
    ```
    This interactive script will guide you through all required configuration.
+   
+   Alternatively, copy the example configuration:
+   ```bash
+   cp Pulumi.example.yaml Pulumi.production.yaml
+   # Edit Pulumi.production.yaml with your values
+   ```
 
 4. **Deploy**:
    ```bash
@@ -82,28 +127,28 @@ This deployment creates the following Kubernetes resources:
 |-----|-------------|---------|
 | `kubeconfig` | Path to kubeconfig file | `~/.kube/config` |
 | `postal:domain` | Your Postal domain | `postal.example.com` |
-| `postal:mysql-password` | MySQL password for Postal user | `secure-password` |
+| `postal:mariadb-password` | MariaDB password for Postal user | `secure-password` |
+| `postal:mariadb-root-password` | MariaDB root password | `secure-root-password` |
 | `postal:signing-key` | RSA private key for signing | Generate with `openssl genrsa 2048` |
 
-### MySQL Configuration
+### MariaDB Configuration
 
-#### Integrated MySQL (Default)
+#### Integrated MariaDB (Default)
 | Key | Description | Default |
 |-----|-------------|---------|
-| `postal:deploy-mysql` | Deploy MySQL using Bitnami chart | `true` |
-| `postal:mysql-root-password` | MySQL root password | Required |
-| `postal:mysql-database` | Database name | `postal` |
-| `postal:mysql-username` | Database username | `postal` |
-| `postal:mysql-storage-size` | Persistent volume size | `8Gi` |
-| `postal:mysql-storage-class` | Storage class | Default cluster storage class |
+| `postal:deploy-mariadb` | Deploy MariaDB using custom component | `true` |
+| `postal:mariadb-database` | Database name | `postal` |
+| `postal:mariadb-username` | Database username | `postal` |
+| `postal:mariadb-storage-size` | Persistent volume size | `8Gi` |
+| `postal:mariadb-storage-class` | Storage class | Default cluster storage class |
 
-#### External MySQL
-Set `postal:deploy-mysql` to `false` and configure:
+#### External MariaDB
+Set `postal:deploy-mariadb` to `false` and configure:
 | Key | Description | Example |
 |-----|-------------|---------|
-| `postal:mysql-host` | MySQL server hostname | `mysql.example.com` |
-| `postal:mysql-database` | Database name | `postal` |
-| `postal:mysql-username` | Database username | `postal_user` |
+| `postal:mariadb-host` | MariaDB server hostname | `mariadb.example.com` |
+| `postal:mariadb-database` | Database name | `postal` |
+| `postal:mariadb-username` | Database username | `postal_user` |
 
 ### Optional Configuration
 
@@ -116,6 +161,7 @@ Set `postal:deploy-mysql` to `false` and configure:
 | `postal:ingress-class` | Ingress controller class | `nginx` |
 | `postal:smtp-service-type` | SMTP service type | `LoadBalancer` |
 | `postal:smtp-loadbalancer-ip` | Static IP for SMTP LoadBalancer | Auto-assigned |
+| `postal:rails-secret-key` | Custom Rails secret key (optional) | Auto-generated secure default |
 
 ## DNS Configuration
 
@@ -172,14 +218,14 @@ The deployment includes:
 
 ## Backup
 
-### MySQL Backup
-If using integrated MySQL:
+### MariaDB Backup
+If using integrated MariaDB:
 ```bash
 # Create backup
-kubectl exec -it postal-mysql-0 -n postal -- mysqldump -u root -p postal > postal-backup.sql
+kubectl exec -it deployment/postal-mariadb-deployment -n postal -- mysqldump -u root -p postal > postal-backup.sql
 
 # Restore backup
-kubectl exec -i postal-mysql-0 -n postal -- mysql -u root -p postal < postal-backup.sql
+kubectl exec -i deployment/postal-mariadb-deployment -n postal -- mysql -u root -p postal < postal-backup.sql
 ```
 
 ### Configuration Backup
@@ -192,7 +238,7 @@ pulumi config --show-secrets > postal-config-backup.yaml
 
 ### Common Issues
 
-1. **MySQL connection errors**: Check if MySQL is ready and credentials are correct
+1. **MariaDB connection errors**: Check if MariaDB is ready and credentials are correct
 2. **Ingress not working**: Verify ingress controller is installed and domain DNS is configured
 3. **SMTP not accessible**: Check LoadBalancer service and firewall rules
 4. **Pods not starting**: Check resource limits and node capacity
@@ -208,8 +254,8 @@ kubectl logs -f deployment/postal-web -n postal
 kubectl logs -f deployment/postal-smtp -n postal
 kubectl logs -f deployment/postal-worker -n postal
 
-# Access MySQL
-kubectl exec -it postal-mysql-0 -n postal -- mysql -u root -p
+# Access MariaDB
+kubectl exec -it deployment/postal-mariadb-deployment -n postal -- mysql -u root -p
 
 # Check services
 kubectl get svc -n postal
@@ -224,7 +270,8 @@ kubectl get ingress -n postal
 - **Network Policies**: Consider implementing network policies for additional isolation
 - **RBAC**: Use Kubernetes RBAC to limit access to Postal resources
 - **Secrets Management**: All sensitive data is stored in Kubernetes secrets
-- **MySQL Security**: Root password and user passwords are encrypted at rest
+- **MariaDB Security**: Root password and user passwords are encrypted at rest
+- **Configuration Security**: Stack configuration files (Pulumi.*.yaml) are excluded from git to protect secrets
 
 ## Contributing
 

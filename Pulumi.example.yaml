@@ -1,0 +1,37 @@
+config:
+  # Kubernetes configuration
+  kubeconfig: /path/to/your/kubeconfig
+
+  # Postal configuration
+  postal:domain: postal.example.com
+  postal:mariadb-password:
+    secure: YOUR_MARIADB_PASSWORD_HERE
+  postal:mariadb-root-password:
+    secure: YOUR_MARIADB_ROOT_PASSWORD_HERE
+  postal:signing-key:
+    secure: YOUR_RSA_SIGNING_KEY_HERE
+
+  # Optional: Custom Rails secret key
+  # postal:rails-secret-key:
+  #   secure: YOUR_CUSTOM_RAILS_SECRET_KEY_HERE
+
+  # MariaDB configuration (optional, defaults shown)
+  # postal:deploy-mariadb: "true"
+  # postal:mariadb-database: postal
+  # postal:mariadb-username: postal
+  # postal:mariadb-storage-size: 8Gi
+  # postal:mariadb-storage-class: ""
+
+  # Application scaling (optional, defaults shown)
+  # postal:image: ghcr.io/postalserver/postal:3.3.4
+  # postal:web-replicas: 1
+  # postal:smtp-replicas: 1
+  # postal:worker-replicas: 1
+
+  # Networking configuration (optional, defaults shown)
+  # postal:deploy-ingress: "false"
+  # postal:ingress-class: nginx
+  # postal:smtp-service-type: ClusterIP
+  # postal:smtp-loadbalancer-ip: ""
+
+# Encryption salt will be generated automatically when you create a stack 

@@ -3,6 +3,11 @@
 /node_modules/
 /.pulumi/
 
+# Pulumi stack configuration files (contain secrets)
+Pulumi.*.yaml
+!Pulumi.yaml
+!Pulumi.example.yaml
+
 # TypeScript
 *.js
 *.d.ts
