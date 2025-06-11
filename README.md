@@ -11,28 +11,37 @@ Deploy [Postal](https://docs.postalserver.io/) mail server on Kubernetes using P
 ## 🚀 Quick Start
 
 ```bash
+# Clone the repository
 git clone https://github.com/RobbeVerhelst/postal-pulumi-k8s.git
 cd postal-pulumi-k8s
+
+# Install dependencies
 npm install
-./setup-stack-config.sh  # Interactive configuration
-pulumi up                 # Deploy to your cluster
+
+# Login to Pulumi (uses local file backend, no account needed)
+pulumi login --local
+
+# Configure and deploy
+pulumi stack init production
+./setup-stack-config.sh
+pulumi up
 ```
 
-**Result**: Complete mail server with web interface, SMTP server, and MariaDB backend running on your Kubernetes cluster!
+**Result**: A complete mail server with a web interface, SMTP server, and MariaDB backend will be running on your Kubernetes cluster!
 
 > **Topics**: `postal` `mail-server` `kubernetes` `pulumi` `mariadb` `smtp` `infrastructure-as-code` `selfhosted` `homelab` `typescript`
 
 ## Features
 
-- **Web Interface**: Complete web-based management interface
-- **SMTP Server**: Full-featured SMTP server with TLS support
-- **Background Workers**: Asynchronous job processing
-- **Integrated MariaDB**: Custom MariaDB deployment with automatic permissions (or external database support)
-- **Scalable**: Easily scale components independently
-- **Kubernetes Native**: Deployed using Kubernetes best practices
-- **Infrastructure as Code**: Managed with Pulumi for reproducible deployments
-- **CI Ready**: GitHub Actions workflow for automated testing and validation
-- **Production Ready**: Enterprise-grade code quality with strict TypeScript checking
+-   **Web Interface**: Complete web-based management interface.
+-   **SMTP Server**: Full-featured SMTP server with TLS support.
+-   **Background Workers**: Asynchronous job processing for email delivery.
+-   **Integrated MariaDB**: Custom MariaDB component with automatic database permissions.
+-   **Scalable**: Easily scale individual components (`web`, `smtp`, `worker`) as needed.
+-   **Kubernetes Native**: Deploys using standard Kubernetes resources.
+-   **Infrastructure as Code**: Managed with Pulumi for reproducible deployments.
+-   **CI Ready**: GitHub Actions workflow for automated testing and validation.
+-   **Production Ready**: Enterprise-grade code quality with strict TypeScript checking.
 
 ## Architecture
 
@@ -61,7 +70,6 @@ The repository includes a comprehensive CI pipeline that runs automatically on e
 - **Build & Lint**: TypeScript compilation and strict linting
 - **Pulumi Validation**: Syntax validation with fake credentials (no infrastructure required)
 - **Security Checks**: Dependency audit and hardcoded secret detection
-- **Documentation**: README validation and required sections check
 - **Code Quality**: TODO/FIXME detection and console statement checks
 
 ### Smart Validation
@@ -76,11 +84,11 @@ No setup required - the CI runs automatically and doesn't need any secrets or co
 
 ## Prerequisites
 
-- Kubernetes cluster (1.19+)
-- Pulumi CLI installed
-- kubectl configured to access your cluster
-- Ingress controller (nginx recommended)
-- Cert-manager for automatic TLS certificates (optional but recommended)
+-   A Kubernetes cluster (v1.19+).
+-   The [Pulumi CLI](https://www.pulumi.com/docs/get-started/install/).
+-   `kubectl` configured to access your cluster.
+-   An Ingress controller (e.g., `nginx-ingress`) if you plan to use ingress.
+-   The `openssl` command-line tool to generate the signing key.
 
 ## Quick Start
 
