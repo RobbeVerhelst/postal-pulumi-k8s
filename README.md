@@ -29,8 +29,6 @@ pulumi up
 
 **Result**: A complete mail server with a web interface, SMTP server, and MariaDB backend will be running on your Kubernetes cluster!
 
-> **Topics**: `postal` `mail-server` `kubernetes` `pulumi` `mariadb` `smtp` `infrastructure-as-code` `selfhosted` `homelab` `typescript`
-
 ## Features
 
 -   **Web Interface**: Complete web-based management interface.

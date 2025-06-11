@@ -75,41 +75,35 @@ jobs:
 
       - name: Create fake Pulumi stack for validation
         run: |
-          # Create a temporary stack for validation
           pulumi stack init ci-validation --non-interactive
-          
-          # Set minimal required config to make the program parseable
           pulumi config set kubeconfig "fake-kubeconfig-for-ci"
           pulumi config set postal:domain "ci-test.example.com"
           pulumi config set postal:mariadb-password "fake-password" --secret
-          pulumi config set postal:signing-key "fake-signing-key" --secret  
+          pulumi config set postal:signing-key "fake-signing-key" --secret
           pulumi config set postal:mariadb-root-password "fake-root-password" --secret
-          
           echo "✅ Fake stack configured for validation"
-          
+        env:
+          PULUMI_CONFIG_PASSPHRASE: "ci"
+
       - name: Validate Pulumi program syntax
         run: |
-          # This will validate the TypeScript compiles and Pulumi program is valid
-          # without actually connecting to any infrastructure
           echo "🔍 Validating Pulumi program syntax..."
-          
-          # Build the program
           npm run build
-          
-          # Try to parse the program (this will fail gracefully on fake credentials)
           timeout 30s pulumi preview --non-interactive --suppress-outputs || true
-          
-          # Check if the program compiled without syntax errors
           if [ $? -eq 124 ]; then
             echo "✅ Program validation successful (timed out as expected with fake credentials)"
           else
             echo "✅ Program validation completed"
           fi
+        env:
+          PULUMI_CONFIG_PASSPHRASE: "ci"
           
       - name: Cleanup fake stack
         if: always()
         run: |
           pulumi stack rm ci-validation --yes --force || true
+        env:
+          PULUMI_CONFIG_PASSPHRASE: "ci"
 
   # Job 3: Security and Quality Checks
   security-checks:
